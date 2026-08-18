@@ -140,6 +140,7 @@ export const OFFER_TYPES = [
   "discovery_sample",
   "fragrance_vial",
   "clothing_gift",
+  "shoe_gift",
   "home_product_gift",
 ] as const;
 
@@ -163,6 +164,7 @@ export const OFFER_TYPE_LABELS: Record<OfferType, string> = {
   discovery_sample: "Discovery Sample",
   fragrance_vial: "Fragrance Vial",
   clothing_gift: "Clothing Gift",
+  shoe_gift: "Shoe Gift",
   home_product_gift: "Home Product Gift",
 };
 
