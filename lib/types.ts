@@ -39,6 +39,13 @@ export interface SampleOpportunity {
   product: string;
   category: Category;
   product_image_url: string | null;
+  pr_package_image_url: string | null;
+  evidence_image_url: string | null;
+  evidence_source_url: string | null;
+  evidence_source_type: "official_product" | "official_pr_package" | "official_campaign" | "brand_social" | "pr_agency" | "creator_platform" | "email_attachment" | "other" | null;
+  expected_contents: string | null;
+  receipt_confidence: "exact_confirmed" | "high" | "medium" | "low" | "unknown";
+  receipt_confidence_reason: string | null;
   estimated_value: number | null;
   brand_tier: "luxury" | "premium" | "unverified";
   offer_type: OfferType | null;
@@ -80,6 +87,8 @@ export interface SampleOpportunity {
   safety_reasons: string[];
   opportunity_score: number | null;
   status: PipelineStatus;
+  last_status_event_at: string | null;
+  last_status_event: string | null;
   request_date: string | null;
   approval_date: string | null;
   shipment_date: string | null;
@@ -98,6 +107,30 @@ export interface SampleOpportunity {
   estimated_delivery: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ApplicationEvent {
+  id: string;
+  opportunity_id: string;
+  event_type: "drafted" | "sent" | "delivered" | "viewed" | "clicked" | "replied" | "needs_info" | "approved" | "declined" | "waitlisted" | "campaign_full" | "address_requested" | "shipped" | "other";
+  event_at: string;
+  source: string;
+  gmail_message_id: string | null;
+  gmail_thread_id: string | null;
+  details: string | null;
+  created_at: string;
+}
+
+export interface GmailConnection {
+  id: string;
+  user_id: string;
+  email: string;
+  scopes: string[];
+  history_id: string | null;
+  watch_expiration: string | null;
+  connected_at: string;
+  last_sync_at: string | null;
+  status: "connected" | "needs_reauth" | "disconnected" | "error";
 }
 
 export interface SampleRequest {
