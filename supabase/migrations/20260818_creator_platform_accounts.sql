@@ -23,5 +23,5 @@ create policy creator_platform_accounts_authenticated_full_access on creator_pla
   for all to authenticated using (true) with check (true);
 
 insert into creator_platform_accounts (platform, account_url, status, notes)
-values ('Fohr', 'https://app.fohr.co/', 'active', 'Zoe has already created a Fohr creator account. Treat Fohr Bulletins and campaign invitations as a primary opportunity source.')
-on conflict (platform) do update set account_url=excluded.account_url, status='active', notes=excluded.notes;
+values ('Fohr', 'https://app.fohr.co/', 'needs_setup', 'Unverified whether Zoe already has a Fohr account — confirm before treating as active. Fohr ambassador applications were checked live 2026-08-18 and were closed at that time.')
+on conflict (platform) do update set account_url=excluded.account_url, notes=excluded.notes;
