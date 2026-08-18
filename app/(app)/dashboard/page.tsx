@@ -16,7 +16,11 @@ import type { SampleOpportunity } from "@/lib/types";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data } = await supabase.from("sample_opportunities").select("*");
+  const [{ data }, { count: sentCount }, { count: repliedCount }] = await Promise.all([
+    supabase.from("sample_opportunities").select("*"),
+    supabase.from("sample_requests").select("*", { count: "exact", head: true }).eq("status", "sent"),
+    supabase.from("conversation_messages").select("*", { count: "exact", head: true }).eq("direction", "inbound"),
+  ]);
   const opportunities = (data ?? []) as SampleOpportunity[];
 
   const now = new Date();
@@ -63,10 +67,24 @@ export default async function DashboardPage() {
         <p className="text-sm text-muted-foreground">Zoe&apos;s free luxury sample concierge — live from real data only.</p>
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Link href="/conversations">
+          <StatCard label="Requests Sent" value={String(sentCount ?? 0)} hint="Real emails/applications actually sent — click to see the threads" />
+        </Link>
+        <Link href="/conversations">
+          <StatCard
+            label="Replies Received"
+            value={String(repliedCount ?? 0)}
+            hint={repliedCount ? "Click to read what came back" : "Nothing back yet — check back after a few business days"}
+            className={repliedCount ? "border-primary/40" : undefined}
+          />
+        </Link>
+        <StatCard label="Total Opportunities" value={String(opportunities.length)} />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="This Month — Approved" value={formatCurrency(thisMonthApprovedValue)} hint="Sum of estimated value, approved this month" />
         <StatCard label="Lifetime — Received" value={formatCurrency(lifetimeReceivedValue)} hint="Sum of estimated value, marked Received" />
-        <StatCard label="Total Opportunities" value={String(opportunities.length)} />
         <StatCard label="Scam / High-Risk Alerts" value={String(scamAlerts.length)} className={scamAlerts.length ? "border-destructive/40" : undefined} />
       </div>
 
