@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { encryptSecret } from "@/lib/gmail";
 
 export async function GET(req: NextRequest) {
+  const origin = req.nextUrl.origin;
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
@@ -12,29 +13,65 @@ export async function GET(req: NextRequest) {
   cookieStore.delete("gmail_oauth_state");
 
   if (!code || !state || !expected || state !== expected) {
-    return NextResponse.redirect(new URL("/settings/gmail?error=state", process.env.NEXT_PUBLIC_APP_URL));
+    return NextResponse.redirect(new URL("/settings/gmail?error=state", origin));
   }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL));
+  if (!user) return NextResponse.redirect(new URL("/login", origin));
 
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/gmail/callback`;
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    return NextResponse.redirect(new URL("/settings/gmail?error=oauth_config", origin));
+  }
+
+  const redirectUri = `${origin}/api/gmail/callback`;
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ code, client_id: process.env.GOOGLE_CLIENT_ID!, client_secret: process.env.GOOGLE_CLIENT_SECRET!, redirect_uri: redirectUri, grant_type: "authorization_code" }),
+    body: new URLSearchParams({
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code",
+    }),
   });
-  if (!tokenRes.ok) return NextResponse.redirect(new URL("/settings/gmail?error=token", process.env.NEXT_PUBLIC_APP_URL));
-  const tokens = await tokenRes.json() as { access_token: string; refresh_token?: string; expires_in: number; scope?: string };
 
-  const infoRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", { headers: { Authorization: `Bearer ${tokens.access_token}` } });
-  if (!infoRes.ok) return NextResponse.redirect(new URL("/settings/gmail?error=profile", process.env.NEXT_PUBLIC_APP_URL));
+  if (!tokenRes.ok) {
+    return NextResponse.redirect(new URL("/settings/gmail?error=token", origin));
+  }
+
+  const tokens = await tokenRes.json() as {
+    access_token: string;
+    refresh_token?: string;
+    expires_in: number;
+    scope?: string;
+  };
+
+  const infoRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+    headers: { Authorization: `Bearer ${tokens.access_token}` },
+  });
+  if (!infoRes.ok) {
+    return NextResponse.redirect(new URL("/settings/gmail?error=profile", origin));
+  }
+
   const info = await infoRes.json() as { email: string; sub: string };
+  const { data: existing } = await supabase
+    .from("gmail_connections")
+    .select("encrypted_refresh_token")
+    .eq("user_id", user.id)
+    .eq("email", info.email)
+    .maybeSingle();
 
-  const { data: existing } = await supabase.from("gmail_connections").select("encrypted_refresh_token").eq("user_id", user.id).eq("email", info.email).maybeSingle();
-  const encryptedRefresh = tokens.refresh_token ? encryptSecret(tokens.refresh_token) : existing?.encrypted_refresh_token;
-  if (!encryptedRefresh) return NextResponse.redirect(new URL("/settings/gmail?error=refresh", process.env.NEXT_PUBLIC_APP_URL));
+  const encryptedRefresh = tokens.refresh_token
+    ? encryptSecret(tokens.refresh_token)
+    : existing?.encrypted_refresh_token;
+
+  if (!encryptedRefresh) {
+    return NextResponse.redirect(new URL("/settings/gmail?error=refresh", origin));
+  }
 
   await supabase.from("gmail_connections").upsert({
     user_id: user.id,
@@ -47,5 +84,5 @@ export async function GET(req: NextRequest) {
     connected_at: new Date().toISOString(),
   }, { onConflict: "user_id,email" });
 
-  return NextResponse.redirect(new URL("/settings/gmail?connected=1", process.env.NEXT_PUBLIC_APP_URL));
+  return NextResponse.redirect(new URL("/settings/gmail?connected=1", origin));
 }
